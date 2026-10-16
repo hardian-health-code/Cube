@@ -27,3 +27,18 @@ from the package entirely.
 
 
 
+
+
+Building
+------------------------------------------------------------------------------
+
+`js/cube/cuber.min.js` and its source map are built from `js/cube/cuber.js`
+with [esbuild](https://esbuild.github.io/). After editing `cuber.js`, run:
+
+```
+npm install
+npm run build
+```
+
+This rewrites `js/cube/cuber.min.js` and `js/cube/cuber.min.js.map`; commit
+both alongside your change to `cuber.js`.
