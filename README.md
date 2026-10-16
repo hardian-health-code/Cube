@@ -58,7 +58,7 @@ Paste this into a Squarespace Code Block (or any HTML):
 
 ```html
 <div data-hardian-cube data-height="500px"></div>
-<script src="https://cdn.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js"></script>
 ```
 
 To use it on many pages, put the `<script>` line in Settings → Advanced →
