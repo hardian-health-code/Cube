@@ -10039,6 +10039,10 @@ ERNO.Interaction = (function(){
 		function onInteractStart( event ){
 
 
+			//	This listens on the whole document, so leave presses elsewhere on
+			//	the page (a host site's editor, say) entirely alone.
+			if( !domElement.contains( event.target )) return;
+
 			if( event.touches != null ) event.preventDefault()
 
 
@@ -10124,7 +10128,7 @@ ERNO.Interaction = (function(){
 			}
 
 			// Prevent the default system dragging behaviour. ( Things like IOS move the viewport )
-			if( api.enabled ){
+			if( api.enabled && api.active ){
 				
 				event.preventDefault();
 				event.stopImmediatePropagation();
