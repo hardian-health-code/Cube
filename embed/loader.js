@@ -12,7 +12,8 @@
 //	  data-controls="false"    hide the Reshuffle and Solve buttons
 //	  data-keyboard="true"     let letter keys twist the cube (off by default
 //	                           so typing elsewhere on the page doesn't)
-//	  data-shuffle="20"        scramble with this many moves on load
+//	  data-shuffle="10"        moves in the scramble played when the cube
+//	                           comes into view (10 by default, 0 for none)
 
 
 var SELECTOR = '[data-hardian-cube]';
@@ -20,7 +21,10 @@ var STYLE_ID = 'hardian-cube-style';
 var FONT_URL = 'https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap';
 
 var SHUFFLE_MOVES    = 20;
+var LOAD_SHUFFLE_MOVES = 10;
+var LOAD_SHUFFLE_DELAY = 400;	//	ms after the cube comes into view
 var SHUFFLE_DURATION = 120;	//	ms per twist
+var LOAD_SHUFFLE_DURATION = 220;
 var SOLVE_DURATION   = 160;
 
 
@@ -53,26 +57,22 @@ function makeButton( label, onClick ){
 }
 
 
-//	The engine has no solver, so Solve plays back the inverse of every move
-//	made since the cube was last solved, shuffles and the visitor's own alike.
+//	Shuffling and solving. The engine has no solver, so solve() plays back the
+//	inverse of every move made since the cube was last solved, shuffles and the
+//	visitor's own alike, while turning the whole cube back to the orientation
+//	it started in (the H logo facing front).
 
-function addControls( element, cube ){
+function createPlayer( cube, onChange ){
 
 	var moves = [],
 		state = null,	//	null, 'shuffling' or 'solving'
-		remaining = 0,
+		pending = 0,	//	parts of a solve still running
 		defaultDuration = cube.twistDuration,
-		shuffleButton, solveButton;
+		home = cube.object3D.quaternion.clone();
 
 	function busy(){
 
 		return state !== null || cube.twistQueue.future.length > 0 || cube.isTweening() > 0;
-	}
-
-	function refresh(){
-
-		shuffleButton.disabled = state !== null;
-		solveButton.disabled   = state !== null || moves.length === 0;
 	}
 
 	function finish(){
@@ -80,7 +80,43 @@ function addControls( element, cube ){
 		state = null;
 		cube.twistDuration = defaultDuration;
 		cube.mouseControlsEnabled = true;
-		refresh();
+		onChange();
+	}
+
+	function partDone(){
+
+		if( --pending <= 0 ){
+			moves = [];
+			finish();
+		}
+	}
+
+	function isHome(){
+
+		var q = cube.object3D.quaternion;
+		return Math.abs( q.x * home.x + q.y * home.y + q.z * home.z + q.w * home.w ) > 0.99999;
+	}
+
+	function turnHome( duration ){
+
+		var from = cube.object3D.quaternion.clone(),
+			started = null;
+
+		function step( now ){
+
+			if( started === null ) started = now;
+
+			var t = Math.min( 1, ( now - started ) / duration ),
+				eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow( -2 * t + 2, 3 ) / 2;
+
+			cube.object3D.quaternion.copy( from ).slerp( home, eased );
+			cube.requestRender();
+
+			if( t < 1 ) requestAnimationFrame( step );
+			else partDone();
+		}
+
+		requestAnimationFrame( step );
 	}
 
 	cube.addEventListener( 'onTwistComplete', function( event ){
@@ -89,11 +125,7 @@ function addControls( element, cube ){
 		if( !twist ) return;
 
 		if( state === 'solving' ){
-
-			if( --remaining <= 0 ){
-				moves = [];
-				finish();
-			}
+			partDone();
 			return;
 		}
 
@@ -104,7 +136,7 @@ function addControls( element, cube ){
 
 		if( state === null && cube.isSolved() ) moves = [];
 
-		refresh();
+		onChange();
 	});
 
 	cube.addEventListener( 'onShuffleComplete', function(){
@@ -112,30 +144,47 @@ function addControls( element, cube ){
 		if( state === 'shuffling' ) finish();
 	});
 
-	shuffleButton = makeButton( 'Reshuffle', function(){
+	return {
 
-		if( busy() ) return;
+		isBusy: function(){ return state !== null; },
 
-		state = 'shuffling';
-		cube.twistDuration = SHUFFLE_DURATION;
-		refresh();
-		cube.shuffle( SHUFFLE_MOVES );
-	});
+		shuffle: function( amount, duration ){
 
-	solveButton = makeButton( 'Solve', function(){
+			if( busy() ) return;
 
-		if( busy() || moves.length === 0 ) return;
+			state = 'shuffling';
+			cube.twistDuration = duration || SHUFFLE_DURATION;
+			onChange();
+			cube.shuffle( amount || SHUFFLE_MOVES );
+		},
 
-		state = 'solving';
-		remaining = moves.length;
-		cube.twistDuration = SOLVE_DURATION;
-		cube.mouseControlsEnabled = false;
-		refresh();
+		solve: function(){
 
-		moves.slice().reverse().forEach( function( twist ){
-			cube.twist( twist.getInverse() );
-		});
-	});
+			if( busy() ) return;
+
+			var turning = !isHome();
+			if( moves.length === 0 && !turning ) return;
+
+			state = 'solving';
+			pending = moves.length + ( turning ? 1 : 0 );
+			cube.twistDuration = SOLVE_DURATION;
+			cube.mouseControlsEnabled = false;
+			onChange();
+
+			moves.slice().reverse().forEach( function( twist ){
+				cube.twist( twist.getInverse() );
+			});
+
+			if( turning ) turnHome( Math.max( 900, moves.length * SOLVE_DURATION ));
+		}
+	};
+}
+
+
+function addControls( element, player ){
+
+	var shuffleButton = makeButton( 'Reshuffle', function(){ player.shuffle(); }),
+		solveButton   = makeButton( 'Solve', function(){ player.solve(); });
 
 	var controls = document.createElement( 'div' );
 	controls.className = 'hardian-cube-controls';
@@ -143,12 +192,30 @@ function addControls( element, cube ){
 	controls.appendChild( solveButton );
 	element.appendChild( controls );
 
-	refresh();
+	return function refresh(){
 
-	return {
-		shuffle: function(){ shuffleButton.click(); },
-		solve:   function(){ solveButton.click(); }
+		shuffleButton.disabled = solveButton.disabled = player.isBusy();
 	};
+}
+
+
+//	Play the load-time shuffle once the cube scrolls into view, so visitors
+//	actually see it being scrambled.
+
+function whenVisible( element, callback ){
+
+	if( !window.IntersectionObserver ) return setTimeout( callback, LOAD_SHUFFLE_DELAY );
+
+	var observer = new IntersectionObserver( function( entries ){
+
+		if( entries.some( function( entry ){ return entry.isIntersecting; })){
+			observer.disconnect();
+			setTimeout( callback, LOAD_SHUFFLE_DELAY );
+		}
+
+	}, { threshold: 0.4 });
+
+	observer.observe( element );
 }
 
 
@@ -208,10 +275,14 @@ function mount( element ){
 
 	stage.appendChild( cube.domElement );
 
-	if( element.getAttribute( 'data-controls' ) !== 'false' ) cube.embedControls = addControls( element, cube );
+	var refresh = function(){};
+	var player = createPlayer( cube, function(){ refresh(); });
+	if( element.getAttribute( 'data-controls' ) !== 'false' ) refresh = addControls( element, player );
+	refresh();
+	cube.player = player;
 
-	var shuffle = parseInt( element.getAttribute( 'data-shuffle' ), 10 );
-	if( shuffle > 0 ) cube.shuffle( shuffle );
+	var shuffle = element.hasAttribute( 'data-shuffle' ) ? parseInt( element.getAttribute( 'data-shuffle' ), 10 ) : LOAD_SHUFFLE_MOVES;
+	if( shuffle > 0 ) whenVisible( stage, function(){ player.shuffle( shuffle, LOAD_SHUFFLE_DURATION ); });
 
 	element.hardianCube = cube;
 	return cube;
