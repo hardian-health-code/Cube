@@ -72,6 +72,7 @@ Options, as attributes on the `<div>`:
 | `data-height` | `400px` | Height of the cube area, if the element has none from CSS |
 | `data-background` | `#fff` | Background colour |
 | `data-controls` | `true` | Show the Reshuffle and Solve buttons under the cube |
+| `data-hint` | `true` | Show the faint looped arrow by the cube that hints it can be dragged around |
 | `data-keyboard` | `false` | Let letter keys twist the cube |
 | `data-shuffle` | `10` | Moves in the scramble played when the cube scrolls into view (`0` for none) |
 

@@ -75,12 +75,20 @@ ERNO.extend = function ( obj, source ) {
 	// ECMAScript5 compatibility based on: http://www.nczonline.net/blog/2012/12/11/are-your-mixins-ecmascript-5-compatible/
 	if ( Object.keys ) {
 
-		var keys = Object.keys( source );
+		var keys = Object.keys( source ),
+
+			//	Helpers added to built-ins (Array, Number, String) must not be
+			//	enumerable, or every for...in over an array on the host page
+			//	picks them up and breaks that page's own scripts.
+			builtIn = obj === Array.prototype || obj === Number.prototype || obj === String.prototype;
 
 		for (var i = 0, il = keys.length; i < il; i++) {
 
-			var prop = keys[i];
-			Object.defineProperty( obj, prop, Object.getOwnPropertyDescriptor( source, prop ) );
+			var prop = keys[i],
+				descriptor = Object.getOwnPropertyDescriptor( source, prop );
+
+			if( builtIn ) descriptor.enumerable = false;
+			Object.defineProperty( obj, prop, descriptor );
 
 		}
 

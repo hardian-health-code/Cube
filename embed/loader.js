@@ -10,6 +10,8 @@
 //	                           no height of its own
 //	  data-background="#fff"   background colour, white by default
 //	  data-controls="false"    hide the Reshuffle and Solve buttons
+//	  data-hint="false"        hide the looped arrow that hints the cube
+//	                           can be dragged around
 //	  data-keyboard="true"     let letter keys twist the cube (off by default
 //	                           so typing elsewhere on the page doesn't)
 //	  data-shuffle="10"        moves in the scramble played when the cube
@@ -54,6 +56,24 @@ function makeButton( label, onClick ){
 	button.textContent = label;
 	button.addEventListener( 'click', onClick );
 	return button;
+}
+
+
+//	A faint looped arrow by the cube's top-right corner, hinting that dragging
+//	the space around the cube turns it. It ignores the pointer, so drags pass
+//	straight through to the cube.
+
+function makeRotateHint(){
+
+	var hint = document.createElement( 'div' );
+	hint.className = 'hardian-cube-hint';
+	hint.setAttribute( 'aria-hidden', 'true' );
+	hint.innerHTML =
+		'<svg viewBox="0 0 56 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+			'<path d="M17 30.5C9 28.8 4 25.5 4 21.5c0-6.4 10.7-11.5 24-11.5s24 5.1 24 11.5c0 4.6-5.6 8.6-13.7 10.4"/>' +
+			'<path d="M42.5 27.2L38.3 31.9l5.2 3.6"/>' +
+		'</svg>';
+	return hint;
 }
 
 
@@ -274,6 +294,7 @@ function mount( element ){
 	});
 
 	stage.appendChild( cube.domElement );
+	if( element.getAttribute( 'data-hint' ) !== 'false' ) stage.appendChild( makeRotateHint() );
 
 	var refresh = function(){};
 	var player = createPlayer( cube, function(){ refresh(); });
