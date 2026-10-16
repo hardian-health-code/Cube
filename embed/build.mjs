@@ -1,12 +1,10 @@
 //	Builds dist/hardian-cube.js: one self-contained script (cube engine,
 //	styles and logo inlined) that can be dropped onto any page.
 //
-//	  node embed/build.mjs
-//
-//	Minifies with esbuild, fetched through npx if it isn't installed.
+//	  npm run build   (or node embed/build.mjs after npm install)
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { transformSync } from 'esbuild';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,10 +44,7 @@ ${ read( 'embed/loader.js' ) }
 })();
 `;
 
-const minified = execFileSync( 'npx', [ '--yes', 'esbuild@0.24.2', '--minify', '--loader=js', '--target=es2015', '--legal-comments=none' ], {
-	input: source,
-	maxBuffer: 64 * 1024 * 1024
-});
+const minified = transformSync( source, { minify: true, loader: 'js', target: 'es2015', legalComments: 'none' }).code;
 
 mkdirSync( join( root, 'dist' ), { recursive: true });
 writeFileSync( join( root, 'dist/hardian-cube.js' ), minified );

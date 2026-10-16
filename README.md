@@ -29,6 +29,22 @@ from the package entirely.
 
 
 
+Building
+------------------------------------------------------------------------------
+
+`js/cube/cuber.min.js` and its source map are built from `js/cube/cuber.js`
+with [esbuild](https://esbuild.github.io/). After editing `cuber.js`, run:
+
+```
+npm install
+npm run build
+```
+
+This rewrites `js/cube/cuber.min.js`, `js/cube/cuber.min.js.map` and the
+embed bundle `dist/hardian-cube.js`; commit them alongside your change to
+`cuber.js`.
+
+
 
 Embed on another site (Squarespace etc.)
 ------------------------------------------------------------------------------
@@ -61,6 +77,6 @@ Options, as attributes on the `<div>`:
 `window.HardianCube.mount(element)` mounts one by hand and returns the cube.
 
 After changing `js/cube/cuber.js`, `styles/cube.css` or `embed/loader.js`,
-rebuild with `node embed/build.mjs` and commit `dist/hardian-cube.js`.
+run `npm run build` and commit `dist/hardian-cube.js`.
 jsDelivr caches `@main` for up to a day; pin a tag (`@v1.0.0`) for a stable
 URL or purge it at `https://purge.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js`.

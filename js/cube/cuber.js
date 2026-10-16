@@ -6538,6 +6538,16 @@ THREE.CSS3DRenderer = function () {
 	var matrix = new THREE.Matrix4();
 
 	var domElement = document.createElement( 'div' );
+
+
+	//	Pick the supported (unprefixed if possible) style property names once,
+	//	rather than writing every vendor prefix on every frame.
+
+	var testStyle = domElement.style,
+		TRANSFORM = 'transform' in testStyle ? 'transform' : 'WebkitTransform',
+		TRANSFORM_STYLE = 'transformStyle' in testStyle ? 'transformStyle' : 'WebkitTransformStyle',
+		PERSPECTIVE = 'perspective' in testStyle ? 'perspective' : 'WebkitPerspective',
+		_cameraStyle, _perspective;
 	domElement.style.overflow = 'hidden';
 
 	domElement.style.WebkitTransformStyle = 'preserve-3d';
@@ -6691,15 +6701,18 @@ THREE.CSS3DRenderer = function () {
 
 			var element = object.element;
 
-			element.style.WebkitTransformStyle = 'preserve-3d';
-			element.style.MozTransformStyle = 'preserve-3d';
-			element.style.oTransformStyle = 'preserve-3d';
-			element.style.transformStyle = 'preserve-3d';
 
-			element.style.WebkitTransform = style;
-			element.style.MozTransform = style;
-			element.style.oTransform = style;
-			element.style.transform = style;
+			//	Only touch the DOM when this object actually moved.
+			//	Unchanged writes still cost the browser a style recalc.
+
+			if ( object._cssTransform !== style ) {
+
+				if ( object._cssTransform === undefined ) element.style[ TRANSFORM_STYLE ] = 'preserve-3d';
+
+				element.style[ TRANSFORM ] = style;
+				object._cssTransform = style;
+
+			}
 
 
 			if ( element.parentNode !== cameraElement ) {
@@ -6725,10 +6738,12 @@ THREE.CSS3DRenderer = function () {
 
 			var fov = 0.5 / Math.tan( THREE.Math.degToRad( camera.fov * 0.5 ) ) * _height;
 
-			domElement.style.WebkitPerspective = fov + "px";
-			domElement.style.MozPerspective = fov + "px";
-			domElement.style.oPerspective = fov + "px";
-			domElement.style.perspective = fov + "px";
+			if ( _perspective !== fov ) {
+
+				domElement.style[ PERSPECTIVE ] = fov + "px";
+				_perspective = fov;
+
+			}
 
 			scene.updateMatrixWorld();
 
@@ -6739,10 +6754,12 @@ THREE.CSS3DRenderer = function () {
 			var style = "translate3d(0,0," + fov + "px)" + getCameraCSSMatrix( camera.matrixWorldInverse ) +
 				" translate3d(" + _widthHalf + "px," + _heightHalf + "px, 0)";
 
-			cameraElement.style.WebkitTransform = style;
-			cameraElement.style.MozTransform = style;
-			cameraElement.style.oTransform = style;
-			cameraElement.style.transform = style;
+			if ( _cameraStyle !== style ) {
+
+				cameraElement.style[ TRANSFORM ] = style;
+				_cameraStyle = style;
+
+			}
 
 			renderObject( scene, camera );
 		// }
@@ -7701,6 +7718,8 @@ ERNO.Queue.prototype.add = function(){
 
 		}.bind( this ));
 
+		if( this.onAdd instanceof Function ) this.onAdd();
+
 	}
 
 	return this.future;
@@ -8343,7 +8362,7 @@ ERNO.Cubelet = function( cube, id, colors ){
 	//  which at first seems indentical to isTweening,
 	//  until you consider partial rotations. 
 
-	this.isTweening = true;
+	this._isTweening = false;
 	this.isEngagedX = false;
 	this.isEngagedY = false;
 	this.isEngagedZ = false;
@@ -8364,8 +8383,7 @@ ERNO.Cubelet = function( cube, id, colors ){
 	//  During a rotation animation this Cubelet marks itself as 
 	//  this.isTweening = true. 
 	//  Very useful. Let's try it out.
-
-	this.isTweening = false;
+	//  (See the isTweening accessor below, it also keeps the Cube's count.)
 
 
 	//  Some fun tweenable properties.
@@ -8385,6 +8403,24 @@ ERNO.Cubelet = function( cube, id, colors ){
 ERNO.Cubelet.prototype = Object.create( THREE.Object3D.prototype );
 
 ERNO.extend( ERNO.Cubelet.prototype, {
+
+
+	//  Setting isTweening also updates the Cube's tweeningCount,
+	//  so the Cube can ask "is anything tweening?" without scanning all 27 Cubelets.
+
+	get isTweening(){
+
+		return this._isTweening;
+	},
+	set isTweening( value ){
+
+		value = !!value;
+		if( value !== this._isTweening ){
+
+			this._isTweening = value;
+			if( this.cube && this.cube.tweeningCount !== undefined ) this.cube.tweeningCount += value ? 1 : -1;
+		}
+	},
 
 
 	//  Aside from initialization this function will be called 
@@ -9366,6 +9402,8 @@ ERNO.extend( ERNO.Slice.prototype, {
 
 		}
 
+		if( this.cube.requestRender ) this.cube.requestRender();
+
 	},
 
 
@@ -10037,6 +10075,7 @@ ERNO.Interaction = (function(){
 
 
 						api.active = true;
+						cube.wake();
 
 
 						//	Now we know the point of intersection, we can figure out what the associated cubelet is ...
@@ -10081,6 +10120,7 @@ ERNO.Interaction = (function(){
 
 				current.x = ( event.touches && event.touches[0] || event ).clientX,
 				current.y = ( event.touches && event.touches[0] || event ).clientY;
+				cube.wake();
 			}
 
 			// Prevent the default system dragging behaviour. ( Things like IOS move the viewport )
@@ -10269,6 +10309,19 @@ ERNO.Controls = (function(){
 			};
 
 
+		//	The cube only animates while something is moving, so let it know.
+
+		function wake(){
+
+			if( object.wake instanceof Function ) object.wake();
+		}
+
+		api.isActive = function(){
+
+			return api.enabled && state !== STATE.NONE;
+		};
+
+
 		var getMouseProjectionOnBall = function( x, y, vector ){
 
 			var view = getBoundingClientRect( api.domElement ),
@@ -10293,7 +10346,7 @@ ERNO.Controls = (function(){
 
 			return function updateClosure () {
 
-				if( api.enabled === false || state === STATE.NONE ) return;
+				if( api.enabled === false || state === STATE.NONE ) return false;
 
 
 			 	//	define an axis to rotate on, this is basically at a tangent to the direction
@@ -10335,6 +10388,8 @@ ERNO.Controls = (function(){
 				} else {
 					state = STATE.NONE
 				}
+
+				return length > 0;
 
 			};
 
@@ -10386,6 +10441,7 @@ ERNO.Controls = (function(){
 				//	Get the delta between mouse positions
 				direction.subVectors( mouse, lastPosition );
 				lastPosition.copy( mouse );
+				wake();
 			}	
 
 
@@ -10401,6 +10457,7 @@ ERNO.Controls = (function(){
 			if ( api.enabled ){
 
 				state = STATE.INERTIA;
+				wake();
 			}
 
 		}
@@ -10435,6 +10492,7 @@ ERNO.Controls = (function(){
 				//	Get the delta between mouse positions
 				direction.subVectors( mouse, lastPosition );
 				lastPosition.copy( mouse );
+				wake();
 			}
 
 		}
@@ -10448,6 +10506,7 @@ ERNO.Controls = (function(){
 			if ( api.enabled ){
 
 				state = STATE.INERTIA;
+				wake();
 			}
 		}
 
@@ -10573,32 +10632,9 @@ ERNO.renderers.CSS3D = function( cubelets, cube ){
 	
 
 
-	// RENDER LOOP
-
-	function render(){
-
-		if( cube.domElement.parentNode ){
-
-			var parentWidth = cube.domElement.parentNode.clientWidth,
-				parentHeight = cube.domElement.parentNode.clientHeight;
-			
-			if( cube.domElement.parentNode &&
-			  ( cube.domElement.clientWidth  !== parentWidth ||
-				cube.domElement.clientHeight !== parentHeight )){
-				
-					cube.setSize( parentWidth, parentHeight );
-
-			}
-
-			renderer.render( scene, cube.camera );
-		}
-
-		requestAnimationFrame( render );
-
-	}
-
-
-	requestAnimationFrame( render );
+	// RENDERING
+	//	There's no render loop here any more. Cube.loop() draws the scene,
+	//	and only on frames where something actually changed.
 
 
 	// We'll need to set the scene object back to it's original type
@@ -11072,10 +11108,14 @@ ERNO.Cube = function( parameters ){
 	parameters = parameters || {};
 
 
-	this.paused     				= parameters.paused === undefined ? false : parameters.paused;
-	this.autoRotate  				= parameters.autoRotate === undefined ? false : parameters.autoRotate;
+	//  paused, autoRotate, mouseControlsEnabled and isSolving are accessors
+	//  (see the prototype) that wake the loop when they change.
+	//  Here we set their backing fields directly.
+
+	this._paused     				= parameters.paused === undefined ? false : parameters.paused;
+	this._autoRotate  				= parameters.autoRotate === undefined ? false : parameters.autoRotate;
 	this.keyboardControlsEnabled	= parameters.keyboardControlsEnabled === undefined ? true : parameters.keyboardControlsEnabled;
-	this.mouseControlsEnabled  		= parameters.mouseControlsEnabled === undefined ? true : parameters.mouseControlsEnabled;
+	this._mouseControlsEnabled  	= parameters.mouseControlsEnabled === undefined ? true : parameters.mouseControlsEnabled;
 
 	var renderFactory 				= parameters.renderer || ERNO.renderers.CSS3D;
 
@@ -11090,7 +11130,7 @@ ERNO.Cube = function( parameters ){
 
 	this.isShuffling 	= false;
 	this.isReady     	= true;
-	this.isSolving   	= false;
+	this._isSolving   	= false;
 	this.undoing 		= false;
 	this.render 		= true;
 	this.finalShuffle 	= null;
@@ -11103,6 +11143,20 @@ ERNO.Cube = function( parameters ){
 	this.time = 0;
 
 
+	//	The loop only runs while something is happening, and only draws
+	//	when something changed. These track that.
+
+	this.needsRender    = true;
+	this.frameRequested = false;
+	this.inLoop         = false;
+	this.lastFrameTime  = 0;
+
+
+	//	How many of our Cubelets are mid-tween. Kept up to date by Cubelet.isTweening.
+
+	this.tweeningCount = 0;
+
+
 	// 	We'll keep an record of the number of moves we've made
 	// 	Useful for keeping scores.
 	this.moveCounter = 0;
@@ -11112,18 +11166,21 @@ ERNO.Cube = function( parameters ){
 	//  which can only be run if this.isReady === true.
 
 	this.taskQueue = new ERNO.Queue();
+	this.taskQueue.onAdd = this.wake.bind( this );
 
 
 	//  We need the ability to gang up twist commands.
 	//  Every fire of this.loop() will attempt to empty it.
 
 	this.twistQueue = new ERNO.Queue( ERNO.Twist.validate );
+	this.twistQueue.onAdd = this.wake.bind( this );
 
 
 	//	Although we have a queue containing all our twists
 	//	we also need a way to collect any undo requests into a similar queue
 
 	this.historyQueue = new ERNO.Queue( ERNO.Twist.validate );
+	this.historyQueue.onAdd = this.wake.bind( this );
 
 
 	//  How long should a Cube.twist() take?
@@ -11496,10 +11553,54 @@ ERNO.Cube = function( parameters ){
 
 
 	//  Get ready for major loop-age.
-	//  Our Cube checks these booleans at 60fps.
+	//  Our Cube checks these booleans at up to 60fps, but only while
+	//  something is going on. Otherwise the loop sleeps until woken.
 
 	this.loop = this.loop.bind( this );
-	requestAnimationFrame( this.loop );
+	ERNO.Cube.instances.push( this );
+	this.requestRender();
+
+
+
+	//	SIZING
+	//	Keep the cube the size of its containing element.
+	//	A ResizeObserver tells us when that changes, so we don't have to
+	//	measure the DOM every frame. Observing our own element as well
+	//	tells us when we're added to (or removed from) the page.
+
+	this.sizeDirty = true;
+
+	if( typeof ResizeObserver !== 'undefined' ){
+
+		var observedParent = null;
+
+		this.resizeObserver = new ResizeObserver( function(){
+
+			var parent = this.domElement.parentNode;
+
+			if( parent !== observedParent ){
+
+				if( observedParent ) this.resizeObserver.unobserve( observedParent );
+				if( parent && parent.nodeType === 1 ) this.resizeObserver.observe( parent );
+				observedParent = parent;
+			}
+
+			this.sizeDirty = true;
+			this.requestRender();
+
+		}.bind( this ));
+
+		this.resizeObserver.observe( this.domElement );
+	}
+	else {
+
+		window.addEventListener( 'resize', function(){
+
+			this.sizeDirty = true;
+			this.requestRender();
+
+		}.bind( this ));
+	}
 
 
 
@@ -11797,7 +11898,90 @@ ERNO.extend( ERNO.Cube.prototype, {
 
 		this.renderer.setSize( width, height );
 
+		this.requestRender();
 
+
+	},
+
+
+	//  Is anything tweening? Cubelets keep this count for us,
+	//  which beats asking all 27 of them every frame.
+
+	isTweening: function(){
+
+		return this.tweeningCount;
+	},
+
+
+	//  The loop sleeps when there's nothing to do.
+	//  wake() makes sure it runs on the next frame,
+	//  requestRender() also makes sure that frame gets drawn.
+	//  If you move the cube yourself (say, cube.rotation.y += 1)
+	//  call cube.requestRender() afterwards.
+
+	wake: function(){
+
+		//  (Until the constructor binds this.loop there's nothing to run.)
+		if( this.inLoop || this.frameRequested || !this.hasOwnProperty( 'loop' )) return;
+
+		this.frameRequested = true;
+		requestAnimationFrame( this.loop );
+	},
+	requestRender: function(){
+
+		this.needsRender = true;
+		this.wake();
+	},
+
+
+	//  Is there anything that needs another frame?
+
+	isBusy: function(){
+
+		if( this.paused ) return false;
+
+		var queue = this.undoing ? this.historyQueue : this.twistQueue;
+
+		return (
+
+			TWEEN.getAll().length > 0 ||
+			this.tweeningCount > 0 ||
+			this.autoRotate ||
+			queue.future.length > 0 ||
+			( this.taskQueue.future.length > 0 && this.taskQueue.isReady === true ) ||
+			( this.isSolving && !!window.solver ) ||
+			this.mouseInteraction.active ||
+			this.controls.isActive instanceof Function && this.controls.isActive()
+		);
+	},
+
+
+	//  These wake the loop when they're switched on,
+	//  so you can still just say cube.autoRotate = true.
+
+	get paused(){ return this._paused; },
+	set paused( value ){
+
+		this._paused = value;
+		this.wake();
+	},
+	get autoRotate(){ return this._autoRotate; },
+	set autoRotate( value ){
+
+		this._autoRotate = value;
+		this.wake();
+	},
+	get mouseControlsEnabled(){ return this._mouseControlsEnabled; },
+	set mouseControlsEnabled( value ){
+
+		this._mouseControlsEnabled = value;
+		this.wake();
+	},
+	get isSolving(){ return this._isSolving; },
+	set isSolving( value ){
+
+		this._isSolving = value;
+		this.wake();
 	},
 
 
@@ -11818,129 +12002,181 @@ ERNO.extend( ERNO.Cube.prototype, {
 	//  This is how shuffling and solving are handled.
 
 
-	loop: (function(){
+	//  This is also the render loop: anything that moved this frame
+	//  sets needsRender, and we draw once at the end.
+	//  When nothing is left to do we stop asking for frames.
+
+	loop: function(){
 
 
-		var time = 0;
-
-		return function(){
-
-
-			requestAnimationFrame( this.loop );
+		this.frameRequested = false;
+		this.inLoop = true;
 
 
-			//	Kick off the next animation frame
+		//	A sleeping loop shouldn't count the time it slept,
+		//	so the first frame after waking has a delta of zero.
 
-			var localTime = ( typeof window !== 'undefined' && window.performance !== undefined && window.performance.now !== undefined ? window.performance.now() : Date.now() );
-			var frameDelta = localTime - ( time || localTime );
-			time = localTime;
-
-
-			if( !this.paused ){
+		var localTime = ( typeof window !== 'undefined' && window.performance !== undefined && window.performance.now !== undefined ? window.performance.now() : Date.now() );
+		var frameDelta = localTime - ( this.lastFrameTime || localTime );
+		this.lastFrameTime = localTime;
 
 
-
-				//	Update the internal animation frame
-				this.time += frameDelta;
-
-
-				TWEEN.update( this.time );
+		if( !this.paused ){
 
 
 
+			//	Update the internal animation frame
+			this.time += frameDelta;
 
-				if( this.autoRotate ){
 
-					this.rotation.x += this.rotationDelta.x;
-					this.rotation.y += this.rotationDelta.y;
-					this.rotation.z += this.rotationDelta.z;
-
-				}
+			if( TWEEN.update( this.time )) this.needsRender = true;
 
 
 
-				//  If the Cube is "ready"
-				//  and not a single cubelet is currently tweening
-				//  regardless of it's resting state (engagement;
-				//  meaning it could in theory not be tweening but
-				//  has come to rest at where rotation % 90 !== 0.
 
-				if( this.isReady && this.isTweening() === 0 ){
+			if( this.autoRotate ){
 
-					// if( this.twistQueue.isReady ){
-
-
-						var queue = this.undoing ? this.historyQueue : this.twistQueue;
-
-
-						//  We have zero twists in the queue
-						//  so perhaps we'd like to add some?
-
-						if( queue.future.length === 0 ){
-
-
-							//  If the cube ought to be solving and a solver exists
-							//  and we're not shuffling, tweening, etc.
-
-							if( this.isSolving && window.solver ){
-
-								this.isSolving = window.solver.consider( this );
-							}
-
-
-							//  If we are doing absolutely nothing else
-							//  then we can can try executing a task.
-
-							else if( this.taskQueue.isReady === true ){
-
-								var task = this.taskQueue.do();
-								if( task instanceof Function ) task();
-							}
-						}
-
-						//  Otherwise, we have some twists in the queue
-						//  and we should put everything else aside and tend to those.
-
-						else {
-
-
-							var twist = queue.do();
-
-							if( twist.command.toLowerCase() !== 'x' &&
-								twist.command.toLowerCase() !== 'y' &&
-								twist.command.toLowerCase() !== 'z' &&
-								twist.degrees !== 0  ) this.moveCounter += this.undoing ? -1 : 1;
-
-
-							//  If the twist we're about to execute does not actually
-							//  change any slices, ie, we're rotating back to 0,
-							//  then we don't need to remember it.
-							if( twist.degrees === 0 || twist.isShuffle ) queue.purge( twist );
-
-
-							this.immediateTwist( twist );
-
-
-
-						}
-
-					// }
-
-				}
-
-
-				// Our mouse controls should only be active if we are not rotating
-				this.mouseInteraction.enabled = this.mouseControlsEnabled && !this.finalShuffle;
-				this.mouseInteraction.update();
-
-				this.controls.enabled = this.mouseControlsEnabled && !this.mouseInteraction.active;
-				this.controls.update();
-
+				this.rotation.x += this.rotationDelta.x;
+				this.rotation.y += this.rotationDelta.y;
+				this.rotation.z += this.rotationDelta.z;
+				this.needsRender = true;
 
 			}
+
+
+
+			//  If the Cube is "ready"
+			//  and not a single cubelet is currently tweening
+			//  regardless of it's resting state (engagement;
+			//  meaning it could in theory not be tweening but
+			//  has come to rest at where rotation % 90 !== 0.
+
+			if( this.isReady && this.isTweening() === 0 ){
+
+				// if( this.twistQueue.isReady ){
+
+
+					var queue = this.undoing ? this.historyQueue : this.twistQueue;
+
+
+					//  We have zero twists in the queue
+					//  so perhaps we'd like to add some?
+
+					if( queue.future.length === 0 ){
+
+
+						//  If the cube ought to be solving and a solver exists
+						//  and we're not shuffling, tweening, etc.
+
+						if( this.isSolving && window.solver ){
+
+							this.isSolving = window.solver.consider( this );
+						}
+
+
+						//  If we are doing absolutely nothing else
+						//  then we can can try executing a task.
+
+						else if( this.taskQueue.isReady === true ){
+
+							var task = this.taskQueue.do();
+							if( task instanceof Function ) task();
+						}
+					}
+
+					//  Otherwise, we have some twists in the queue
+					//  and we should put everything else aside and tend to those.
+
+					else {
+
+
+						var twist = queue.do();
+
+						if( twist.command.toLowerCase() !== 'x' &&
+							twist.command.toLowerCase() !== 'y' &&
+							twist.command.toLowerCase() !== 'z' &&
+							twist.degrees !== 0  ) this.moveCounter += this.undoing ? -1 : 1;
+
+
+						//  If the twist we're about to execute does not actually
+						//  change any slices, ie, we're rotating back to 0,
+						//  then we don't need to remember it.
+						if( twist.degrees === 0 || twist.isShuffle ) queue.purge( twist );
+
+
+						this.immediateTwist( twist );
+
+
+
+					}
+
+				// }
+
+			}
+
+
+			// Our mouse controls should only be active if we are not rotating
+			this.mouseInteraction.enabled = this.mouseControlsEnabled && !this.finalShuffle;
+			this.mouseInteraction.update();
+
+			this.controls.enabled = this.mouseControlsEnabled && !this.mouseInteraction.active;
+			if( this.controls.update() ) this.needsRender = true;
+
+
 		}
-	}())
+
+
+		//	Draw, but only if something changed and we're on the page.
+
+		if( this.needsRender && this.domElement.parentNode ){
+
+			if( this.sizeDirty ){
+
+				//	Without a ResizeObserver we fall back to checking every drawn frame.
+				this.sizeDirty = !this.resizeObserver;
+
+				var parent = this.domElement.parentNode,
+					parentWidth  = parent.clientWidth,
+					parentHeight = parent.clientHeight;
+
+				if( this.domElement.clientWidth  !== parentWidth ||
+					this.domElement.clientHeight !== parentHeight ){
+
+					this.setSize( parentWidth, parentHeight );
+				}
+			}
+
+			if( this.renderer.scene ) this.renderer.render( this.renderer.scene, this.camera );
+			this.needsRender = false;
+		}
+
+
+		this.inLoop = false;
+
+
+		//	Keep going while there's work, otherwise sleep until woken.
+
+		if( this.isBusy() ) this.wake();
+		else this.lastFrameTime = 0;
+	}
 })
+
+
+//  Every Cube, so that starting a tween anywhere can wake them up.
+
+ERNO.Cube.instances = [];
+
+(function(){
+
+	var add = TWEEN.add;
+
+	TWEEN.add = function( tween ){
+
+		add.call( TWEEN, tween );
+		ERNO.Cube.instances.forEach( function( cube ){ cube.wake(); });
+	};
+
+}());
 
 /*
 
