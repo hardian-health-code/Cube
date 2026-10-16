@@ -40,5 +40,43 @@ npm install
 npm run build
 ```
 
-This rewrites `js/cube/cuber.min.js` and `js/cube/cuber.min.js.map`; commit
-both alongside your change to `cuber.js`.
+This rewrites `js/cube/cuber.min.js`, `js/cube/cuber.min.js.map` and the
+embed bundle `dist/hardian-cube.js`; commit them alongside your change to
+`cuber.js`.
+
+
+
+Embed on another site (Squarespace etc.)
+------------------------------------------------------------------------------
+
+`dist/hardian-cube.js` is a single self-contained script: the cube engine,
+its styles (scoped under `.hardian-cube`) and the logo are all inlined. It
+mounts a cube into every element with a `data-hardian-cube` attribute,
+including ones that appear later, so it can be loaded once site-wide.
+
+Paste this into a Squarespace Code Block (or any HTML):
+
+```html
+<div data-hardian-cube data-height="500px"></div>
+<script src="https://cdn.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js"></script>
+```
+
+To use it on many pages, put the `<script>` line in Settings → Advanced →
+Code Injection → Footer instead, and add just the `<div>` in a Code Block
+wherever a cube should appear. Loading the script twice is harmless.
+
+Options, as attributes on the `<div>`:
+
+| Attribute | Default | |
+|---|---|---|
+| `data-height` | `400px` | Height, if the element has none from CSS |
+| `data-background` | transparent | Background colour |
+| `data-keyboard` | `false` | Let letter keys twist the cube |
+| `data-shuffle` | none | Scramble with this many moves on load |
+
+`window.HardianCube.mount(element)` mounts one by hand and returns the cube.
+
+After changing `js/cube/cuber.js`, `styles/cube.css` or `embed/loader.js`,
+run `npm run build` and commit `dist/hardian-cube.js`.
+jsDelivr caches `@main` for up to a day; pin a tag (`@v1.0.0`) for a stable
+URL or purge it at `https://purge.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js`.

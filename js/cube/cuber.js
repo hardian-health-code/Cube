@@ -10406,14 +10406,16 @@ ERNO.Controls = (function(){
 			if ( !api.enabled || event.which !== 1 ) return;
 
 
-			if( projector.getIntersection( camera, event.pageX, event.pageY ) === null ){
+			//	Client coordinates, like the projector uses. Page coordinates made clicks on
+			//	the cube miss once the page was scrolled, spinning the whole cube as well.
+			if( projector.getIntersection( camera, event.clientX, event.clientY ) === null ){
 
 			
 				state = STATE.ROTATE;
 
 
 				direction.multiplyScalar( 0 );
-				getMouseProjectionOnBall( event.pageX, event.pageY, mouse );
+				getMouseProjectionOnBall( event.clientX, event.clientY, mouse );
 				lastPosition.copy( mouse );
 
 
@@ -10434,7 +10436,7 @@ ERNO.Controls = (function(){
 
 				state = STATE.ROTATE;
 
-				getMouseProjectionOnBall( event.pageX, event.pageY, mouse );
+				getMouseProjectionOnBall( event.clientX, event.clientY, mouse );
 
 				//	Get the delta between mouse positions
 				direction.subVectors( mouse, lastPosition );
@@ -10463,12 +10465,12 @@ ERNO.Controls = (function(){
 
 		function touchstart( event ) {
 
-			if ( api.enabled && projector.getIntersection( camera, event.touches[ 0 ].pageX, event.touches[ 0 ].pageY ) === null ){
+			if ( api.enabled && projector.getIntersection( camera, event.touches[ 0 ].clientX, event.touches[ 0 ].clientY ) === null ){
 
 				state = STATE.ROTATE;
 
 				direction.multiplyScalar( 0 );
-				getMouseProjectionOnBall( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY, mouse );
+				getMouseProjectionOnBall( event.touches[ 0 ].clientX, event.touches[ 0 ].clientY, mouse );
 				lastPosition.copy( mouse );
 
 				api.domElement.removeEventListener( 'touchstart', touchstart );
@@ -10485,7 +10487,7 @@ ERNO.Controls = (function(){
 
 				state = STATE.ROTATE;
 
-				getMouseProjectionOnBall( event.changedTouches[ 0 ].pageX, event.changedTouches[ 0 ].pageY, mouse );
+				getMouseProjectionOnBall( event.changedTouches[ 0 ].clientX, event.changedTouches[ 0 ].clientY, mouse );
 
 				//	Get the delta between mouse positions
 				direction.subVectors( mouse, lastPosition );

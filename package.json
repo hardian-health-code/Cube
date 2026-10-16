@@ -2,7 +2,7 @@
   "name": "hardian-cube",
   "private": true,
   "scripts": {
-    "build": "esbuild js/cube/cuber.js --minify --sourcemap --target=es2015 --outfile=js/cube/cuber.min.js"
+    "build": "esbuild js/cube/cuber.js --minify --sourcemap --target=es2015 --outfile=js/cube/cuber.min.js && node embed/build.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.10"
