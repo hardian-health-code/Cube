@@ -73,11 +73,13 @@ Options, as attributes on the `<div>`:
 | `data-background` | `#fff` | Background colour |
 | `data-controls` | `true` | Show the Reshuffle and Solve buttons under the cube |
 | `data-keyboard` | `false` | Let letter keys twist the cube |
-| `data-shuffle` | none | Scramble with this many moves on load |
+| `data-shuffle` | `10` | Moves in the scramble played when the cube scrolls into view (`0` for none) |
 
 `window.HardianCube.mount(element)` mounts one by hand and returns the cube.
 
-Solve plays back every move since the cube was last solved, in reverse.
+Solve plays back every move since the cube was last solved, in reverse, and
+turns the whole cube back to its starting orientation with the logo facing
+front. In the Squarespace editor a placeholder shows instead of the cube.
 
 After changing `js/cube/cuber.js`, `styles/cube.css` or anything in `embed/`,
 run `npm run build` and commit `dist/hardian-cube.js`.
