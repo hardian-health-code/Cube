@@ -63,7 +63,9 @@ var ERNO = {};
 
 	CustomEvent.prototype = window.Event.prototype;
 
-	window.CustomEvent = CustomEvent;
+	//	Only for browsers without a native CustomEvent. Replacing a working one
+	//	breaks any script on the host page that relies on the real thing.
+	if( typeof window.CustomEvent !== 'function' ) window.CustomEvent = CustomEvent;
 	
 })();
 
@@ -79,7 +81,9 @@ ERNO.extend = function ( obj, source ) {
 
 			//	Helpers added to built-ins (Array, Number, String) must not be
 			//	enumerable, or every for...in over an array on the host page
-			//	picks them up and breaks that page's own scripts.
+			//	picks them up, and must never replace a native method (such as
+			//	Number's toString, which takes a radix), or the host page's own
+			//	scripts break.
 			builtIn = obj === Array.prototype || obj === Number.prototype || obj === String.prototype;
 
 		for (var i = 0, il = keys.length; i < il; i++) {
@@ -87,6 +91,7 @@ ERNO.extend = function ( obj, source ) {
 			var prop = keys[i],
 				descriptor = Object.getOwnPropertyDescriptor( source, prop );
 
+			if( builtIn && prop in obj ) continue;
 			if( builtIn ) descriptor.enumerable = false;
 			Object.defineProperty( obj, prop, descriptor );
 
