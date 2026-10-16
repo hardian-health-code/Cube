@@ -72,3 +72,26 @@
 	font-size: 14px;
 	font-weight: 600;
 }
+
+/*	The cube's on-screen size scales with the stage height, so the hint is
+	placed in container-height units to sit just off its top-right corner. */
+
+.hardian-cube .hardian-cube-stage {
+	container-type: size;
+}
+
+.hardian-cube .hardian-cube-hint {
+	position: absolute;
+	left: min( calc( 50% + 20cqh ), calc( 100% - 60px ));
+	top: max( 8px, calc( 50% - 37cqh ));
+	width: 52px;
+	height: 37px;
+	color: #c9c8cf;
+	pointer-events: none;
+}
+
+.hardian-cube .hardian-cube-hint svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
