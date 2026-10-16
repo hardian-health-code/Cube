@@ -27,7 +27,7 @@ const css = read( 'styles/cube.css' ).toString()
 		.map( selector => '.hardian-cube ' + selector.trim().replace( /\s+/g, ' ' ))
 		.join( ',' ) + '{' );
 
-const baseCss = '.hardian-cube{position:relative;overflow:hidden;width:100%;touch-action:none;user-select:none;-webkit-user-select:none}';
+const embedCss = read( 'embed/embed.css' ).toString().replace( /\/\*[\s\S]*?\*\//g, '' );
 
 
 //	cuber.js sets window._, which would clobber a lodash or underscore the host
@@ -39,7 +39,7 @@ if( window.HardianCube ) return;
 var previousUnderscore = window._;
 ${ read( 'js/cube/cuber.js' ) }
 if( previousUnderscore !== undefined ) window._ = previousUnderscore;
-var HARDIAN_CUBE_CSS = ${ JSON.stringify( baseCss + css ) };
+var HARDIAN_CUBE_CSS = ${ JSON.stringify( css + embedCss ) };
 ${ read( 'embed/loader.js' ) }
 })();
 `;

@@ -1,0 +1,64 @@
+/*	Embed layout and controls. Appended to the scoped cube styles by embed/build.mjs. */
+
+.hardian-cube {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	background: #fff;
+	font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.hardian-cube .hardian-cube-stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.hardian-cube .hardian-cube-controls {
+	display: flex;
+	justify-content: center;
+	gap: 12px;
+	padding: 16px 16px 24px;
+}
+
+.hardian-cube .hardian-cube-button {
+	appearance: none;
+	-webkit-appearance: none;
+	margin: 0;
+	border: 0;
+	border-radius: 999px;
+	padding: 10px 26px;
+	background: #f0f0f2;
+	color: #55555c;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	text-transform: none;
+	cursor: pointer;
+	box-shadow: none;
+	transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+
+.hardian-cube .hardian-cube-button:hover,
+.hardian-cube .hardian-cube-button:focus-visible {
+	background: #A37AF5;
+	color: #fff;
+	outline: none;
+}
+
+.hardian-cube .hardian-cube-button:active {
+	transform: scale(0.97);
+}
+
+.hardian-cube .hardian-cube-button:disabled {
+	background: #f0f0f2;
+	color: #b4b4ba;
+	cursor: default;
+	transform: none;
+}

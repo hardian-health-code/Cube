@@ -69,14 +69,17 @@ Options, as attributes on the `<div>`:
 
 | Attribute | Default | |
 |---|---|---|
-| `data-height` | `400px` | Height, if the element has none from CSS |
-| `data-background` | transparent | Background colour |
+| `data-height` | `400px` | Height of the cube area, if the element has none from CSS |
+| `data-background` | `#fff` | Background colour |
+| `data-controls` | `true` | Show the Reshuffle and Solve buttons under the cube |
 | `data-keyboard` | `false` | Let letter keys twist the cube |
 | `data-shuffle` | none | Scramble with this many moves on load |
 
 `window.HardianCube.mount(element)` mounts one by hand and returns the cube.
 
-After changing `js/cube/cuber.js`, `styles/cube.css` or `embed/loader.js`,
+Solve plays back every move since the cube was last solved, in reverse.
+
+After changing `js/cube/cuber.js`, `styles/cube.css` or anything in `embed/`,
 run `npm run build` and commit `dist/hardian-cube.js`.
 jsDelivr caches `@main` for up to a day; pin a tag (`@v1.0.0`) for a stable
 URL or purge it at `https://purge.jsdelivr.net/gh/hardian-health-code/Cube@main/dist/hardian-cube.js`.
