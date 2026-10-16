@@ -152,11 +152,41 @@ function addControls( element, cube ){
 }
 
 
+//	Squarespace's editor shows the site inside an iframe. An interactive cube
+//	there gets in the way of selecting and dragging blocks, so it shows a
+//	placeholder instead.
+
+function inSquarespaceEditor(){
+
+	var framed;
+	try { framed = window.self !== window.top; } catch( e ){ framed = true; }
+
+	return framed && !!( window.Static && window.Static.SQUARESPACE_CONTEXT );
+}
+
+
+function mountPlaceholder( element ){
+
+	element.classList.add( 'hardian-cube' );
+
+	var placeholder = document.createElement( 'div' );
+	placeholder.className = 'hardian-cube-placeholder';
+	placeholder.style.height = element.getAttribute( 'data-height' ) || '400px';
+	placeholder.textContent = 'Hardian Cube appears here on the live site';
+	element.appendChild( placeholder );
+
+	element.hardianCube = true;
+	return null;
+}
+
+
 function mount( element ){
 
 	if( element.hardianCube ) return element.hardianCube;
 
 	injectStyles();
+
+	if( inSquarespaceEditor() ) return mountPlaceholder( element );
 
 	var hasOwnHeight = element.clientHeight > 0;
 

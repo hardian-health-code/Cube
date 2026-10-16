@@ -62,3 +62,13 @@
 	cursor: default;
 	transform: none;
 }
+
+.hardian-cube .hardian-cube-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #f0f0f2;
+	color: #8a8a92;
+	font-size: 14px;
+	font-weight: 600;
+}
